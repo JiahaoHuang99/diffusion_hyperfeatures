@@ -1,7 +1,10 @@
+import os
+# Set visible GPU
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+
 import argparse
 import glob
 import json
-import os
 from omegaconf import OmegaConf
 from PIL import Image
 import random
@@ -43,9 +46,10 @@ def extract_hyperfeats(config, diffusion_extractor, aggregation_network, images_
                 img = img.to(device)
                 imgs.append(img)
                 save_names.append(os.path.basename(path).split(".")[0])
-            imgs = torch.vstack(imgs)
-            feats, _ = diffusion_extractor.forward(imgs)
-            diffusion_hyperfeats = aggregation_network(feats.float().view((b, -1, w, h)))
+            imgs = torch.vstack(imgs)  # (B, C, H, W) (2, 3, 512, 512)
+            feats, _ = diffusion_extractor.forward(imgs)  # (B, timesteps, C concat all layers, H, W) (2, 11, 10560, 64, 64)
+            diffusion_hyperfeats = aggregation_network(feats.float().view((b, -1, w, h)))  # (B, projection_dim, H, W) (2, 384, 64, 64)
+            print(0)
         elif config["diffusion_mode"] == "generation":
           prompt = images_or_prompts[i]
           negative_prompt = config["negative_prompt"]
@@ -60,6 +64,7 @@ def extract_hyperfeats(config, diffusion_extractor, aggregation_network, images_
             img.save(f"{save_root}/{hash_name}.png")
             save_names.append(hash_name)
             meta_file.append({"source_path": f"{hash_name}.png", "prompt": prompt})
+            print(0)
     for j, img_hyperfeats in enumerate(diffusion_hyperfeats):
       torch.save(img_hyperfeats.detach().cpu(), f"{save_root}/{save_names[j]}.pt")
     json.dump(meta_file, open(f"{save_root}/meta.json", "w"))
@@ -103,7 +108,11 @@ def main():
 
     # Duplicate the last item in the list until images_or_prompts is a multiple of batch_size
     images_or_prompts = pad_to_batch_size(images_or_prompts, batch_size)
-    extract_hyperfeats(config, diffusion_extractor, aggregation_network, images_or_prompts, args.save_root)
+    extract_hyperfeats(config,
+                       diffusion_extractor,
+                       aggregation_network,
+                       images_or_prompts,
+                       args.save_root)
 
 if __name__ == "__main__":
     main()

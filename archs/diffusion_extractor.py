@@ -103,9 +103,9 @@ class DiffusionExtractor:
         if not preview_mode:
             feats = []
             for timestep in self.save_timestep:
-                timestep_feats = collect_and_resize_feats(self.unet, self.idxs, timestep, self.output_resolution)
+                timestep_feats = collect_and_resize_feats(self.unet, self.idxs, timestep, self.output_resolution)  # (B, C concat all layers, W, H)
                 feats.append(timestep_feats)
-            feats = torch.stack(feats, dim=1)
+            feats = torch.stack(feats, dim=1)  # (B, timesteps, C concat all layers, W, H)
             init_resnet_func(self.unet, reset=True)
         else:
             feats = None
